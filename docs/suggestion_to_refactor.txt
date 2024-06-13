@@ -1,0 +1,107 @@
+### Initial Guess at the Code's Purpose
+
+The code appears to be a function (`scanFunctions`) that scans through TypeScript project files to identify and process functions based on certain criteria (like having specific decorators). It maps these functions and their metadata, resolves dependencies, and then categorizes the functions into different types (`Config`, `Plugin`, `Gateway`, `Usecase`). It processes these categorized functions in a specific order, handles their parameters, and potentially applies plugins to them. Finally, it returns a map of function results.
+
+### Potential Confusing Parts and Suggestions
+
+1. **Comment Language**
+   - **Current State**: The comments are in a mix of English and Indonesian (e.g., `harus punya export`).
+   - **Suggestion**: Use consistent commenting in one language, preferably English, to ensure that a wider audience can understand the code.
+
+2. **Complexity and Length**
+   - **Current State**: The function is quite long and does multiple tasks (scanning functions, categorizing, resolving dependencies, and executing them).
+   - **Suggestion**: Break down the function into smaller, more manageable functions. This improves readability and makes the code easier to test and maintain.
+
+3. **Magic Strings**
+   - **Current State**: Strings like `"Config"`, `"Plugin"`, `"Gateway"`, and `"Usecase"` are used directly in the code.
+   - **Suggestion**: Define these strings as constants or enums to avoid typos and make refactoring easier.
+
+4. **Inconsistent Logging and Debugging**
+   - **Current State**: There are commented-out `console.log` statements scattered throughout the code.
+   - **Suggestion**: Use a proper logging mechanism and ensure consistent logging throughout the code. Remove or uncomment the `console.log` statements as per the logging strategy.
+
+5. **Error Handling**
+   - **Current State**: There is minimal error handling, and the existing error handling (e.g., `throw new Error("the type should be Reference or Literal")`) is direct and abrupt.
+   - **Suggestion**: Implement more graceful error-handling mechanisms. Use `try-catch` blocks where necessary and provide informative error messages.
+
+6. **Complex Logic in Loops**
+   - **Current State**: Nested loops and conditionals handling complex logic (e.g., processing `Usecase` and `Gateway` functions).
+   - **Suggestion**: Extract complex logic into separate functions with meaningful names to clarify their purpose.
+
+7. **Data Structures**
+   - **Current State**: Multiple maps and arrays are used to store and process functions and their metadata.
+   - **Suggestion**: Ensure that the usage of these data structures is well-documented and consider using TypeScript types or interfaces to make their usage clear.
+
+8. **Dependency Injection**
+   - **Current State**: Function dependencies are resolved manually.
+   - **Suggestion**: Consider using a dependency injection framework to manage dependencies more cleanly.
+
+### Refactored Example
+
+Here’s a simplified pseudo-refactor for clarity:
+
+```typescript
+// Constants
+const ACTION_HANDLER_TYPE = ["Gateway", "Usecase"] as const;
+const DECORATOR_TYPES = ["Config", "Plugin", ...ACTION_HANDLER_TYPE] as const;
+
+// Helper Functions
+function isValidFunction(func: FunctionDeclaration): boolean {
+  return func.isExported() && !!func.getName() && !!func.getReturnTypeNode();
+}
+
+function processDecorators(func: FunctionDeclaration): string | null {
+  const decorators = getDecoratorMetadata(func.getJsDocs());
+  if (decorators.some((x) => InjectableDecorator.some((y) => y === x.name))) {
+    return decorators.find((d) => InjectableDecorator.find((y) => y === d.name))!.name as InjectableDecoratorType;
+  }
+  return null;
+}
+
+// Main Function
+export async function scanFunctions(project: Project) {
+  const funcDeclMap: Map<string, FunctionDeclaration> = new Map();
+  const funcMetadatasMap: Map<string, FunctionMetadata> = new Map();
+
+  project.getSourceFiles().forEach((sourceFile) => {
+    sourceFile.getFunctions().forEach((func) => {
+      if (!isValidFunction(func)) return;
+
+      const funcName = func.getName()!;
+      const returnTypeNode = func.getReturnTypeNode()!;
+      const functionReturnTypeName = getFunctionReturnTypeName(returnTypeNode);
+
+      if (funcDeclMap.has(functionReturnTypeName)) return;
+
+      const kind = processDecorators(func);
+      if (!kind) return;
+
+      const dependencies = getFunctionParameters(func);
+      funcDeclMap.set(functionReturnTypeName, func);
+
+      const meta: FunctionMetadata = { name: functionReturnTypeName, dependencies, kind, decorators: getDecoratorMetadata(func.getJsDocs()) };
+      funcMetadatasMap.set(functionReturnTypeName, meta);
+    });
+  });
+
+  const dr = new DependencyResolver(Array.from(funcMetadatasMap.values()).map((x) => ({ name: x.name, dependencies: x.dependencies })));
+  const orderedFunctions = dr.sortFunctions();
+
+  const [configNames, pluginNames, actionHandlerFunctions] = categorizeFunctions(orderedFunctions, funcMetadatasMap);
+  const funcResultMap = new Map();
+
+  await processConfigurations(configNames, funcDeclMap, funcMetadatasMap, funcResultMap);
+  await processPlugins(pluginNames, funcDeclMap, funcMetadatasMap, funcResultMap);
+  await processActionHandlers(actionHandlerFunctions, funcDeclMap, funcMetadatasMap, pluginNames, funcResultMap);
+
+  return funcResultMap;
+}
+
+// Example helper functions to be implemented
+function categorizeFunctions(orderedFunctions, funcMetadatasMap) { /* ... */ }
+async function processConfigurations(configNames, funcDeclMap, funcMetadatasMap, funcResultMap) { /* ... */ }
+async function processPlugins(pluginNames, funcDeclMap, funcMetadatasMap, funcResultMap) { /* ... */ }
+async function processActionHandlers(actionHandlerFunctions, funcDeclMap, funcMetadatasMap, pluginNames, funcResultMap) { /* ... */ }
+```
+
+This refactor breaks down the monolithic function into smaller, more manageable pieces, improving readability and maintainability. It also addresses some of the potential issues highlighted earlier.

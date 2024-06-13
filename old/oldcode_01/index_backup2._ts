@@ -1,0 +1,14 @@
+import { createFunctionMap, funcMap, ActionHandlerWithDecorator, newCtx } from "./core.js";
+import { Transaction } from "./plugin/plugin.js";
+
+await createFunctionMap("src/config");
+await createFunctionMap("src/provider");
+await createFunctionMap("src/usecase", [Transaction()]);
+
+const usecase = funcMap.get("DoSomething") as ActionHandlerWithDecorator;
+
+const a = await usecase.run(newCtx(), { n: 23 });
+
+// console.log(funcMap);
+
+console.log(a);

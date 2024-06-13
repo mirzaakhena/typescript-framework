@@ -1,0 +1,131 @@
+import * as fs from "fs";
+import * as path from "path";
+import { Project, SourceFile, Symbol, Type, SyntaxKind, TypeReferenceNode } from "ts-morph";
+import { ActionHandler, newCtx } from "./core.js";
+
+const fileMap = new Map<string, any>();
+
+async function createFunctionMap(folderPath: string) {
+  //
+
+  const project = new Project();
+
+  // Read all files recursively in the folder
+  function readFilesRecursively(dir: string) {
+    const files = fs.readdirSync(dir);
+
+    // console.log("read file", dir);
+
+    files.forEach((file) => {
+      const filePath = path.resolve(dir, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat.isDirectory()) {
+        readFilesRecursively(filePath);
+      } else if (filePath.endsWith(".ts")) {
+        project.addSourceFileAtPath(filePath);
+      }
+    });
+  }
+
+  function extractTypeDetails(type: Type) {
+    const properties: { [key: string]: string } = {};
+    const typeProperties = type.getProperties();
+
+    typeProperties.forEach((property: Symbol) => {
+      const propType = property.getValueDeclaration()?.getType().getText();
+      if (propType) {
+        properties[property.getName()] = propType;
+      }
+    });
+    return properties;
+  }
+
+  // Function to find the Type information starting from `DoSomething`
+  function getTypeDetailsFromDoSomething(sourceFile: SourceFile) {
+    // Find the `DoSomething` type alias declaration
+    const doSomethingTypeAlias = sourceFile.getTypeAlias("DoSomething");
+
+    if (doSomethingTypeAlias) {
+      // Get the type node of DoSomething
+      const doSomethingTypeNode = doSomethingTypeAlias.getTypeNode();
+
+      if (doSomethingTypeNode && doSomethingTypeNode.getKind() === SyntaxKind.TypeReference) {
+        // Cast the type node to a TypeReferenceNode to access its properties
+        const typeReferenceNode = doSomethingTypeNode as TypeReferenceNode;
+
+        // Get the type arguments of DoSomething
+        const typeArguments = typeReferenceNode.getTypeArguments();
+
+        if (typeArguments.length > 0) {
+          // Get the first type parameter (Request)
+          const firstTypeParameter = typeArguments[0];
+
+          return extractTypeDetails(firstTypeParameter.getType());
+        }
+      }
+    }
+
+    return {};
+  }
+
+  readFilesRecursively(folderPath);
+
+  for (const sourceFile of project.getSourceFiles()) {
+    //
+
+    // const requestTypeDetails = getTypeDetailsFromDoSomething(sourceFile);
+    // console.log(">>", requestTypeDetails);
+
+    const module = await import(sourceFile.getFilePath());
+
+    for (const func of sourceFile.getFunctions()) {
+      //
+
+      if (!func.isExported()) continue;
+
+      const gateways: Record<string, any> = {};
+      const parameters = func.getParameters();
+      if (parameters.length > 0) {
+        const param = parameters[0];
+        const paramType = param.getType();
+        if (paramType.isObject()) {
+          const paramTypeDetails = extractTypeDetails(paramType);
+          for (const key in paramTypeDetails) {
+            gateways[key] = fileMap.get(paramTypeDetails[key]);
+          }
+        }
+      }
+
+      const functionName = func.getName() as string;
+      // console.log("funcName: ", functionName);
+
+      const functionResult = module[functionName](gateways) as ActionHandler;
+
+      const returnType = func.getReturnType().getText();
+
+      console.log(func.getReturnType());
+
+      fileMap.set(returnType, functionResult);
+    }
+  }
+}
+
+await createFunctionMap("src/config");
+await createFunctionMap("src/provider");
+await createFunctionMap("src/usecase");
+// console.log(fileMap);
+
+const usecase = fileMap.get('import("/Users/mirza/Workspace/belajar-di/src/usecase/usecase").DoSomething') as ActionHandler;
+
+const a = await usecase(newCtx(), { n: 23 });
+
+console.log(a);
+
+// // Get the return type
+// const returnType = func.getReturnType();
+
+// // Get the return type text and remove the import path
+// const returnTypeText = returnType.getText();
+// const match = returnTypeText.match(/(?:import\(.+\)\.)?(\w+)/);
+// const typeName = match ? match[1] : returnTypeText;

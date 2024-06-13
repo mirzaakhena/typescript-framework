@@ -1,0 +1,333 @@
+I made my own framework utilizing the power of type and function closure in typescript.
+
+There are 5 folder.
+
+_src/config/database.ts_
+
+```
+export interface Database {
+  dbName: string;
+}
+
+/**
+ * @decorator {useLog:true}
+ */
+export type DatabaseMySQL = Database;
+
+export function ImplDatabaseMySQL(): DatabaseMySQL {
+  return { dbName: "mysql" };
+}
+
+/**
+ * @decorator {useLog:true}
+ */
+export type DatabasePostgres = Database;
+
+export function ImplDatabasePostgres(): DatabasePostgres {
+  return { dbName: "mysql" };
+}
+```
+
+---
+
+_src/gatewayimpl/gateway.ts_
+
+```
+import { DatabaseMySQL, DatabasePostgres } from "../config/database.js";
+import { FindOnePersonByEmail, Person, SavePerson, GenerateRandomId } from "../model/model.js";
+
+export function ImplFindOnePersonByEmail(g: DatabaseMySQL): FindOnePersonByEmail {
+  return async (ctx, req) => {
+    if (req.email === "abc@gmail.com") {
+      const person = new Person();
+      person.id = "999";
+      person.email = "abc@gmail.com";
+      return { person, dbSource: "" };
+    }
+
+    return { person: null, dbSource: "" };
+  };
+}
+
+export function ImplSavePerson(g: DatabasePostgres): SavePerson {
+  return async (ctx, req) => {
+    return {
+      id: req.person.id,
+      dbSource: "",
+    };
+  };
+}
+
+export function ImplGenerateRandomId(): GenerateRandomId {
+  return async (ctx, req) => {
+    return "12345";
+  };
+}
+```
+
+---
+
+_src/model/model.ts_
+
+```
+import { ActionHandler } from "../core.js";
+
+export class Person {
+  id: string;
+  email: string;
+}
+
+/**
+ * @decorator {useLog: true}
+ */
+export type FindOnePersonByEmail = ActionHandler<{ email: string }, { person: Person | null }>;
+
+/**
+ * @decorator {useLog: true}
+ */
+export type SavePerson = ActionHandler<{ person: Person }, { id: string }>;
+
+/**
+ * @decorator {useLog: true}
+ */
+export type GenerateRandomId = ActionHandler<void, string>;
+```
+
+---
+
+_src/plugin/plugin.ts_
+
+```
+import { PluginHandler } from "../core.js";
+
+export function Logging(): PluginHandler<{ useLog: boolean }> {
+  //
+
+  return (handler, funcName, metadataDecorator) => {
+    //
+
+    if (!metadataDecorator?.useLog) {
+      return handler;
+    }
+
+    return async (ctx, request) => {
+      //
+      console.log("request  %s : %s", funcName.padEnd(24), JSON.stringify(request));
+
+      const responses = await handler(ctx, request);
+
+      console.log("response %s : %s\n", funcName.padEnd(24), JSON.stringify(responses));
+
+      return responses;
+    };
+  };
+}
+```
+
+---
+
+_src/usecase/usecase_register_user.ts_
+
+```
+import { ActionHandler } from "../core.js";
+import { FindOnePersonByEmail, Person, SavePerson, GenerateRandomId } from "../model/model.js";
+
+/**
+ * @decorator {useLog: true}
+ */
+export type RegisterUniqueUser = ActionHandler<{ email: string }, { personId: string }>;
+
+export function ImplRegisterUniqueUser(findOnePersonByEmail: FindOnePersonByEmail, savePerson: SavePerson, generateRandomId: GenerateRandomId): RegisterUniqueUser {
+  return async (ctx, req) => {
+    if (req.email.trim() === "") {
+      throw new Error(`Email must not be empty`);
+    }
+
+    const objPerson = await findOnePersonByEmail(ctx, { email: req.email });
+
+    if (objPerson.person) {
+      throw new Error(`Person with email ${req.email} already exists`);
+    }
+
+    const newPerson = new Person();
+    newPerson.email = req.email;
+    newPerson.id = await generateRandomId(ctx);
+
+    await savePerson(ctx, { person: newPerson });
+
+    return { personId: newPerson.id };
+  };
+}
+```
+
+---
+
+And this is how we can use it if we want to run it manually
+_src/index.ts_
+
+```
+import { newCtx } from "./core.js";
+import { Logging } from "./plugin/plugin.js";
+import { DatabaseMySQL, ImplDatabaseMySQL } from "./config/database.js";
+import { ImplFindOnePersonByEmail, ImplSavePerson, ImplGenerateRandomId } from "./gatewayimpl/gateway.js";
+import { ImplRegisterUniqueUser } from "./usecase/usecase_register_user.js";
+
+export const db: DatabaseMySQL = ImplDatabaseMySQL();
+
+const logging = Logging();
+
+const findOnePersonByEmail = logging(ImplFindOnePersonByEmail(db), "FindOnePersonByEmail", { useLog: true });
+const savePerson = logging(ImplSavePerson(db), "SavePerson", { useLog: true });
+const generateRandomId = logging(ImplGenerateRandomId(), "GenerateRandomId", { useLog: true });
+
+const usecase = logging(ImplRegisterUniqueUser(findOnePersonByEmail, savePerson, generateRandomId), "RegisterUniqueUser", { useLog: true });
+
+const result = await usecase(newCtx(), {
+  email: "mirza@gmail.com",
+});
+
+console.log(result);
+```
+
+The next improvement is to create some framework that will use dependency injection to wiring every component automatically by scanning certain folders. The goal is look like this:
+
+_src/index.ts_
+
+```
+import { ActionHandler, MyFramework, newCtx } from "./core.js";
+import { Logging } from "./plugin/plugin.js";
+
+const myFramework = new MyFramework();
+
+await myFramework.createFunctionMap("./src/config", Logging());
+await myFramework.createFunctionMap("./src/gatewayimpl", Logging());
+await myFramework.createFunctionMap("./src/usecase", Logging());
+
+console.log(myFramework.getAll());
+
+const usecase = myFramework.get("RegisterUniqueUser") as ActionHandler;
+
+const result = await usecase(newCtx(), { email: "abc1@gmail.com" });
+
+console.log(result);
+```
+
+- What do you think about my framework?
+- Give me some idea for the framework name. You may list 10 names
+
+=========================
+
+using `ts-morph` library. I want you to help me to create the code for this framework.
+
+Some additional requirement for your consideration:
+
+0.  Dependency injection basically has a map let say the map name is `container`.
+
+You may see a lot of code like this:
+
+```
+export type ReturnTypeFromFunction = BaseType;
+
+export function TheFunctionName(x: InjectedObjectOne, y: InjectedObjectTwo): ReturnTypeFromFunction {
+  return {...}
+}
+```
+
+The container map key will be the `ReturnTypeFromFunction` and the value is the object as a result from the invoked function.
+Use cache mechanism. Everytime before invoking the function, check the existing key. if not exist then invoke the function, if already exist then just return it
+
+1.  The `createFunctionMap` function parameter is like this
+
+```
+createFunctionMap(directory: string, ...plugins: PluginHandler[]) { ...}
+```
+
+you may notice that we can insert multiple plugins.
+
+2.  The file in each folder can be nested for grouping and clarity purposed. So it is should be able to read the folder recursively until it find the file.
+    This is the example for the gatewayimpl folder, it may applied to other folder too :
+
+```
+// src/gatewayimpl/user/gateway_one.ts
+// src/gatewayimpl/user/gateway_two.ts
+// src/gatewayimpl/product/gateway_one.ts
+// src/gatewayimpl/order/gateway_one.ts
+```
+
+3.  When framework scanner read this kind of code
+
+```
+/**
+ * @decorator {useLog:true}
+ */
+export type DatabaseMySQL = Database;
+
+export function ImplDatabaseMySQL(): DatabaseMySQL {
+  return { dbName: "mysql" };
+}
+```
+
+find the exported function. Read the name in this case is `ImplDatabaseMySQL`.
+Then read the return type, in this sample is `DatabaseMySQL`.
+Then find the type of `DatabaseMySQL`. In this sample, the type `DatabaseMySQL` is in the same file of the function, but it is possible for the type `DatabaseMySQL` to be in other file or folders.
+Then run the function `ImplDatabaseMySQL`. Put the result into the map with key is `DatabaseMySQL` and the value is the result of the invoked function, in this case is the object `{ dbName: "mysql" }`.
+After that, read the JSDoc decorator property value, in this case an object `{useLog:true}` to be put into the plugin.
+
+Another variant of code is like this :
+
+```
+import { DatabasePostgres } from "./config/database.js";
+import { SavePerson } from "../model/model.js";
+
+export function ImplSavePerson(g: DatabasePostgres): SavePerson {
+  return async (ctx, req) => {
+    return {
+      id: req.person.id,
+    };
+  };
+}
+```
+
+In this case, the exported function `ImplSavePerson` has one parameters.
+You need to find the object in the `container` where the key is `DatabasePostgres` then inject the value into this parameters, Then run the function `ImplSavePerson`. The rest is same as before.
+You may notice also the return type `SavePerson` is imported from other file. So you need to lookup to other file to find out the JSDoc decorator property.
+
+And another variant of code is like this :
+
+```
+/**
+ * @decorator {useLog: true}
+ */
+export type RegisterUniqueUser = ActionHandler<{ email: string }, { personId: string }>;
+
+export function ImplRegisterUniqueUser(
+  findOnePersonByEmail: FindOnePersonByEmail,
+  savePerson: SavePerson,
+  generateRandomId: GenerateRandomId,
+): RegisterUniqueUser {
+  return async (ctx, req) => {
+    ...
+    return { ... };
+  };
+}
+```
+
+The step is almost as same as before. But you may notice that the function `ImplRegisterUniqueUser` has a mulitple parameters. All the parameters need to injected by the object found in `container`.
+
+4.  I already have initial code in file `src/core.ts` for your start
+
+```
+export type Context<T extends Record<string, any> = Record<string, any>> = {
+  data: T;
+  traceId: string;
+  date: Date;
+};
+
+export const newCtx = (): Context => ({ data: {}, traceId: "123", date: new Date() });
+
+export type ActionHandler<REQUEST = any, RESPONSE = any> = (ctx: Context, request: REQUEST) => Promise<RESPONSE>;
+
+export type PluginHandler<T = any> = (ah: ActionHandler, funcName: string, functionMetadata?: T) => ActionHandler;
+```
+
+Now, start to write the code. Write comment for explaining the reason. Use the code section properly.

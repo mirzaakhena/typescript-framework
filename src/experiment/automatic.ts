@@ -15,15 +15,18 @@ export async function experimentAutomatic() {
 
   {
     const usecase = container.get("FindOnePersonByEmail")?.funcInstance as ActionHandler;
-    const result = await usecase(newCtx(), { email: "aaa@ccc.aaa" });
+    const result = await usecase(newCtx(), { email: "abc@gmail.com" });
     console.log(">> %s\n", JSON.stringify(result));
   }
 
   {
+    const ctx = newCtx();
+
     const usecase = container.get("RegisterUniqueUser")?.funcInstance as ActionHandler;
-    console.log(JSON.stringify(container.get("RegisterUniqueUser")?.funcMetadata, null, 2));
-    const result = await usecase(newCtx(), { email: "abcd@gmail.com" });
+    const result = await usecase(ctx, { email: "abcd@gmail.com" });
     console.log(">> %s\n", JSON.stringify(result));
+
+    console.log(">>>>", JSON.stringify(ctx.data["recording"], null, 2));
   }
 
   //

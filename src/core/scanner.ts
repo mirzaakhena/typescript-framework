@@ -1,8 +1,10 @@
 import { FunctionDeclaration, JSDoc, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
-import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, InjectableDecoratorType, TypeField } from "./type.js";
+import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
+
+type InjectableDecoratorType = TypeOf<typeof InjectableDecorator>;
 
 function getFunctionReturnTypeName(returnTypeNode: TypeNode<ts.TypeNode> | undefined) {
   return (returnTypeNode as TypeReferenceNode).getText();
@@ -91,6 +93,22 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
 function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
   const funcMap: Map<string, FuncDeclMetadata> = new Map();
 
+  const badgeColorForKind = (kind: TypeOf<typeof InjectableDecorator>) => {
+    if (kind === "Config") {
+      return `\x1b[45m${kind}\x1b[0m`;
+    }
+
+    if (kind === "Plugin") {
+      return `\x1b[42m${kind}\x1b[0m`;
+    }
+
+    if (kind === "Action") {
+      return `\x1b[41m${kind}\x1b[0m`;
+    }
+
+    return `${kind}`;
+  };
+
   project.getSourceFiles().forEach((sourceFile) => {
     sourceFile.getFunctions().forEach((func) => {
       if (!func.isExported()) return;
@@ -109,16 +127,23 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
 
       const dependencies = getFunctionParameters(func);
 
+      const kind = decorators.find((d) => InjectableDecorator.find((y) => y === d.name))!.name as InjectableDecoratorType;
+
       const meta = {
         name: functionReturnTypeName,
         dependencies,
-        kind: decorators.find((d) => InjectableDecorator.find((y) => y === d.name))!.name as InjectableDecoratorType,
+        kind,
         decorators,
       };
+
+      console.log(`  as ${badgeColorForKind(meta.kind)}, function ${meta.name} has ${meta.dependencies.length} dependency:`);
+      meta.dependencies.forEach((x) => console.log(`    - ${x}`));
 
       funcMap.set(functionReturnTypeName, { funcDeclaration: func, funcMetadata: meta });
     });
   });
+
+  console.log();
 
   return funcMap;
 }
@@ -131,15 +156,17 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
 function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   const configMetadatas: FuncMetadata[] = [];
   const pluginMetadatas: FuncMetadata[] = [];
-  const actionHandlerMetadatas: FuncMetadata[] = [];
+  const actionMetadatas: FuncMetadata[] = [];
 
   const nameAndDeps = Array.from(funcMap.values()).map((x) => ({ name: x.funcMetadata.name, dependencies: x.funcMetadata.dependencies }));
   const dr = new DependencyResolver(nameAndDeps);
   const orderedFunctions = dr.sortFunctions();
 
-  const actionHandlerType = ["Gateway", "Usecase"] as const;
-
   orderedFunctions.forEach((x) => {
+    //
+
+    console.log(`  - ${x}`);
+
     const fm = funcMap.get(x)?.funcMetadata;
 
     if (fm?.kind === "Config") {
@@ -152,74 +179,78 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
       return;
     }
 
-    if (fm && actionHandlerType.some((y) => y === fm.kind)) {
-      actionHandlerMetadatas.push(fm);
+    if (fm?.kind === "Action") {
+      actionMetadatas.push(fm);
       return;
     }
   });
 
-  return { configMetadatas, pluginMetadatas, actionHandlerMetadatas };
+  console.log();
+
+  return { configMetadatas, pluginMetadatas, actionMetadatas: actionMetadatas };
 }
 
 /**
  * Resolves and instantiates configuration functions.
- * @param configMetadatas - Array of configuration function metadata.
+ * @param metadatas - Array of configuration function metadata.
  * @param funcMap - Map of function names to their metadata and declarations.
  * @param funcResultMap - Map to store the results and metadata of resolved functions.
  */
-async function resolveConfigFunctions(configMetadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
-  for (const configMetadata of configMetadatas.map((x) => x.name)) {
-    const funcDecl = funcMap.get(configMetadata)?.funcDeclaration as FunctionDeclaration;
+async function resolveConfigFunctions(metadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
+  for (const metadata of metadatas.map((x) => x.name)) {
+    const funcDecl = funcMap.get(metadata)?.funcDeclaration as FunctionDeclaration;
     const module = await import(funcDecl.getSourceFile().getFilePath());
     const funcName = funcDecl.getName() as string;
 
     const funcResult = module[funcName]();
-    funcResultMap.set(configMetadata, {
+
+    funcResultMap.set(metadata, {
       funcInstance: funcResult,
-      funcMetadata: funcMap.get(configMetadata)?.funcMetadata as FuncMetadata,
+      funcMetadata: funcMap.get(metadata)?.funcMetadata as FuncMetadata,
     });
   }
 }
 
 /**
  * Resolves and instantiates plugin functions with their dependencies.
- * @param pluginMetadatas - Array of plugin function metadata.
+ * @param metadatas - Array of plugin function metadata.
  * @param funcMap - Map of function names to their metadata and declarations.
  * @param funcResultMap - Map to store the results and metadata of resolved functions.
  */
-async function resolvePluginFunctions(pluginMetadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
-  for (const pluginMetadata of pluginMetadatas.map((x) => x.name)) {
-    const funcDecl = funcMap.get(pluginMetadata)?.funcDeclaration as FunctionDeclaration;
+async function resolvePluginFunctions(metadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
+  for (const metadata of metadatas.map((x) => x.name)) {
+    const funcDecl = funcMap.get(metadata)?.funcDeclaration as FunctionDeclaration;
     const module = await import(funcDecl.getSourceFile().getFilePath());
     const funcName = funcDecl.getName() as string;
 
     const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
+
     const funcResult = module[funcName](...paramHandlers);
 
-    funcResultMap.set(pluginMetadata, {
+    funcResultMap.set(metadata, {
       funcInstance: funcResult,
-      funcMetadata: funcMap.get(pluginMetadata)?.funcMetadata as FuncMetadata,
+      funcMetadata: funcMap.get(metadata)?.funcMetadata as FuncMetadata,
     });
   }
 }
 
 /**
  * Resolves and instantiates action handler functions, including their dependencies and plugins.
- * @param actionHandlerMetadatas - Array of action handler function metadata.
+ * @param metadatas - Array of action handler function metadata.
  * @param pluginMetadatas - Array of plugin function metadata.
  * @param funcMap - Map of function names to their metadata and declarations.
  * @param funcResultMap - Map to store the results and metadata of resolved functions.
  */
-async function resolveActionHandlerFunctions(
-  actionHandlerMetadatas: FuncMetadata[],
+async function resolveActionFunctions(
+  metadatas: FuncMetadata[],
   pluginMetadatas: FuncMetadata[],
   funcMap: Map<string, FuncDeclMetadata>,
   funcResultMap: Map<string, FuncInstanceMetadata>
 ) {
-  for (const actionHandlerMetadata of actionHandlerMetadatas) {
-    const funcDecl = funcMap.get(actionHandlerMetadata.name)?.funcDeclaration as FunctionDeclaration;
-    const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), actionHandlerMetadata.name);
-    const aliasDecl = aliasSourceFile.getTypeAlias(actionHandlerMetadata.name);
+  for (const metadata of metadatas) {
+    const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
+    const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
+    const aliasDecl = aliasSourceFile.getTypeAlias(metadata.name);
 
     if (!aliasDecl) continue;
 
@@ -228,57 +259,54 @@ async function resolveActionHandlerFunctions(
 
     const typeReferenceNode = typeNode.asKindOrThrow(ts.SyntaxKind.TypeReference);
 
-    if (actionHandlerMetadata.kind === "Usecase") {
-      const typeArguments = typeReferenceNode.getTypeArguments();
+    const typeArguments = typeReferenceNode.getTypeArguments();
 
-      typeArguments.forEach((typeArgument, index) => {
-        if (typeArgument.getKind() === SyntaxKind.TypeReference) {
-          const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
-          const payloadAlias =
-            payloadSourceFile.getTypeAlias(typeArgument.getText(true)) ||
-            payloadSourceFile.getClass(typeArgument.getText(true)) ||
-            payloadSourceFile.getInterface(typeArgument.getText(true));
+    typeArguments.forEach((typeArgument, index) => {
+      if (typeArgument.getKind() === SyntaxKind.TypeReference) {
+        const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
+        const payloadAlias =
+          payloadSourceFile.getTypeAlias(typeArgument.getText(true)) ||
+          payloadSourceFile.getClass(typeArgument.getText(true)) ||
+          payloadSourceFile.getInterface(typeArgument.getText(true));
 
-          if (payloadAlias) {
-            const typeAlias = payloadSourceFile.getTypeAlias(typeArgument.getText(true)) as TypeAliasDeclaration;
-            const decoratorType = getDecoratorMetadata(typeAlias.getJsDocs());
+        if (payloadAlias) {
+          const typeAlias = payloadSourceFile.getTypeAlias(typeArgument.getText(true)) as TypeAliasDeclaration;
+          // const decoratorType = getDecoratorMetadata(typeAlias.getJsDocs());
 
-            const type = typeAlias.getType();
-            const properties = type.getProperties();
+          const properties = typeAlias.getType().getProperties();
 
-            const typeFields = properties.map((prop) => {
-              const name = prop.getName();
-              const type = prop.getTypeAtLocation(aliasDecl).getText();
+          const typeFields = properties.map((prop) => {
+            const name = prop.getName();
+            const type = prop.getTypeAtLocation(aliasDecl).getText();
 
-              const decorator = prop.getJsDocTags().map((doc) => {
-                const texts = doc.getText();
+            const decorator = prop.getJsDocTags().map((doc) => {
+              const texts = doc.getText();
 
-                const text = texts.length > 0 ? texts[0].text : "";
+              const text = texts.length > 0 ? texts[0].text : "";
 
-                try {
-                  const jsonText = JSON.parse(text);
-                  return { name: doc.getName(), data: jsonText };
-                } catch {
-                  return { name: doc.getName(), data: text };
-                }
-              });
-
-              return { name, type, decorator } as TypeField;
+              try {
+                const jsonText = JSON.parse(text);
+                return { name: doc.getName(), data: jsonText };
+              } catch {
+                return { name: doc.getName(), data: text };
+              }
             });
 
-            actionHandlerMetadata[index === 0 ? "request" : "response"] = {
-              name: payloadAlias?.getName() as string,
-              path: payloadSourceFile.getFilePath(),
-              structure: typeFields,
-            };
-          }
-        } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
-          // Handle TypeLiteral case
-        } else {
-          throw new Error("the type should be Reference or Literal");
+            return { name, type, decorator } as TypeField;
+          });
+
+          metadata[index === 0 ? "request" : "response"] = {
+            name: payloadAlias?.getName() as string,
+            path: payloadSourceFile.getFilePath(),
+            structure: typeFields,
+          };
         }
-      });
-    }
+      } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
+        // Handle TypeLiteral case
+      } else {
+        // throw new Error("the type should be Reference or Literal");
+      }
+    });
 
     const module = await import(funcDecl.getSourceFile().getFilePath());
     const funcName = funcDecl.getName() as string;
@@ -288,10 +316,10 @@ async function resolveActionHandlerFunctions(
 
     for (const pluginMetadata of pluginMetadatas) {
       const pluginHandler = funcResultMap.get(pluginMetadata.name)?.funcInstance;
-      currentResult = pluginHandler(currentResult, actionHandlerMetadata);
+      currentResult = pluginHandler(currentResult, metadata);
     }
 
-    funcResultMap.set(actionHandlerMetadata.name, { funcInstance: currentResult, funcMetadata: actionHandlerMetadata });
+    funcResultMap.set(metadata.name, { funcInstance: currentResult, funcMetadata: metadata });
   }
 }
 
@@ -301,14 +329,24 @@ async function resolveActionHandlerFunctions(
  * @returns A map of function names to their resolved instances and metadata.
  */
 export async function scanFunctions(project: Project) {
+  //
+
+  console.log("scanned function:");
   const funcMap = extractFunctions(project);
-  const { configMetadatas, pluginMetadatas, actionHandlerMetadatas } = sortFunctionsByKind(funcMap);
+
+  console.log("sort function by dependencies");
+  const { configMetadatas, pluginMetadatas, actionMetadatas } = sortFunctionsByKind(funcMap);
 
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();
 
+  console.log("resolve config");
   await resolveConfigFunctions(configMetadatas, funcMap, funcResultMap);
+
+  console.log("resolve plugin");
   await resolvePluginFunctions(pluginMetadatas, funcMap, funcResultMap);
-  await resolveActionHandlerFunctions(actionHandlerMetadatas, pluginMetadatas, funcMap, funcResultMap);
+
+  console.log("resolve action");
+  await resolveActionFunctions(actionMetadatas, pluginMetadatas, funcMap, funcResultMap);
 
   return funcResultMap;
 }

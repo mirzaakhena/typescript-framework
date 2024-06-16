@@ -3,7 +3,7 @@ import { PluginHandler } from "../../core/type.js";
 export type Logging = PluginHandler;
 
 /**
- * @Plugin
+ * @Plugin_
  */
 export function ImplLogging(): Logging {
   //
@@ -13,23 +13,12 @@ export function ImplLogging(): Logging {
   return (handler, fm) => {
     //
 
-    const injectable = fm.decorators.find((x) => {
-      console.log(x.name);
-
-      return x.name === "Injectable";
-    });
-
-    if (injectable?.data.as !== "usecase") {
-      return handler;
-    }
-
-    const logging = fm.decorators.find((x) => x.name === "Logging");
-
-    if (logging?.data.useLog === false) {
-      return handler;
-    }
-
     // console.log("plugin level 2"); // dijalankan saat pertama kali melakukan wrapping
+
+    if (!fm.decorators.some((x) => x.name === "Action")) {
+      //
+      return handler;
+    }
 
     return async (ctx, request) => {
       //

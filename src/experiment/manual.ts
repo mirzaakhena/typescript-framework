@@ -15,7 +15,7 @@ export async function experimentManual() {
 
   const generateRandomId = logging(ImplGenerateRandomId(), {
     //
-    kind: "Gateway",
+    kind: "Action",
     name: "GenerateRandomId",
     decorators: [],
     dependencies: [],
@@ -23,7 +23,7 @@ export async function experimentManual() {
 
   const savePerson = logging(ImplSavePerson(databasePostgres), {
     //
-    kind: "Gateway",
+    kind: "Action",
     name: "SavePerson",
     decorators: [],
     dependencies: [],
@@ -31,14 +31,14 @@ export async function experimentManual() {
 
   const findOnePersonByEmail = logging(ImplFindOnePersonByEmail(databaseMySQL), {
     //
-    kind: "Gateway",
+    kind: "Action",
     name: "FindOnePersonByEmail",
     decorators: [],
     dependencies: [],
   });
 
   const registerUniqueUser = logging(ImplRegisterUniqueUser(findOnePersonByEmail, savePerson, generateRandomId), {
-    kind: "Usecase",
+    kind: "Action",
     name: "RegisterUniqueUser",
     decorators: [],
     dependencies: [],

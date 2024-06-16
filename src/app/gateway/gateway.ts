@@ -2,7 +2,7 @@ import { DatabaseMySQL, DatabasePostgres } from "../config/config.js";
 import { FindOnePersonByEmail, GenerateRandomId, Person, SavePerson } from "../model/model.js";
 
 /**
- * @Gateway
+ * @Action
  */
 export function ImplFindOnePersonByEmail(g: DatabaseMySQL): FindOnePersonByEmail {
   return async (ctx, req) => {
@@ -18,7 +18,7 @@ export function ImplFindOnePersonByEmail(g: DatabaseMySQL): FindOnePersonByEmail
 }
 
 /**
- * @Gateway
+ * @Action
  */
 export function ImplSavePerson(g: DatabasePostgres): SavePerson {
   return async (ctx, req) => {
@@ -27,7 +27,7 @@ export function ImplSavePerson(g: DatabasePostgres): SavePerson {
 }
 
 /**
- * @Gateway
+ * @Action
  */
 export function ImplGenerateRandomId(): GenerateRandomId {
   return async (ctx, req) => {

@@ -19,8 +19,8 @@ type Response = {
 export type RegisterUniqueUser = ActionHandler<Request, Response>;
 
 /**
- * @Usecase
- * @Controller { "method": "get", "path": "/registeruser", "tag": "user" }
+ * @Action
+ * @Controller { "method": "get", "path": "/registeruser", "tag": "user", "security": "bearer" }
  */
 export function ImplRegisterUniqueUser( //
   findOnePersonByEmail: FindOnePersonByEmail, //
@@ -32,8 +32,6 @@ export function ImplRegisterUniqueUser( //
 
   return async (ctx, req) => {
     //
-
-    console.log(JSON.stringify(req));
 
     if (req.email.trim() === "") {
       throw new Error(`Email must not be empty`);

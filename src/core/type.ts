@@ -19,16 +19,14 @@ export type FuncMetadata = {
   response?: { name: string; path: string; structure: TypeField[] };
 };
 
-export type Decorator = { name: string; data: any };
-
 export type TypeOf<T extends readonly any[]> = T[number];
 
-export const InjectableDecorator = ["Config", "Gateway", "Plugin", "Usecase"] as const;
+export type Decorator = { name: string; data: any };
 
-export type InjectableDecoratorType = TypeOf<typeof InjectableDecorator>;
+export const InjectableDecorator = ["Config", "Plugin", "Action"] as const;
 
 export type TypeField = {
   name: string;
-  type: string;
+  type: "string" | "number" | "integer" | "array" | "boolean" | "null" | "object";
   decorator: Decorator[];
 };

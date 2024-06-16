@@ -45,7 +45,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[]) {
 
         if (y.name !== "RestApi") return;
 
-        if (y.data.type === "param") {
+        if (y.data === "param") {
           //
 
           path = path.replace(`:${x.name}`, `{${x.name}}`);
@@ -61,7 +61,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[]) {
           return;
         }
 
-        if (y.data.type === "query") {
+        if (y.data === "query") {
           let schema = (requestField?.properties?.[x.name] as SchemaObject) ?? { type: x.type };
           parameters.push({
             in: "query",
@@ -71,7 +71,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[]) {
           return;
         }
 
-        if (y.data.type === "body") {
+        if (y.data === "body") {
           bodyFields.push(x.name);
           return;
         }

@@ -1,14 +1,14 @@
 import express from "express";
 import { newCtx } from "../core/core.js";
-import { ActionHandler, Context, FuncInstanceMetadata } from "../core/type.js";
+import { ActionHandler, FuncInstanceMetadata } from "../core/type.js";
 import { Methods } from "./helper.js";
 
 export type RequestWithContext = express.Request & {
-  ctx?: Context;
+  context?: Record<string, any>;
 };
 
-export const getRequestWithContext = (req: express.Request): Context => {
-  return (req as RequestWithContext).ctx as Context;
+export const getRequestWithContext = (req: express.Request) => {
+  return (req as RequestWithContext).context;
 };
 
 export function generateController(router: express.Router, usecases: FuncInstanceMetadata[]) {
@@ -28,33 +28,34 @@ export function generateController(router: express.Router, usecases: FuncInstanc
       const ctx = getRequestWithContext(req);
 
       let payload = {};
+
       funcMetadata.request?.structure.forEach((x) => {
         //
 
         x.decorator.forEach((y) => {
           //
 
-          if (y.name !== "RestApi") return;
+          if (y.name !== "RequestPart") return;
 
-          if (y.data.type === "query") {
+          if (y.data === "query") {
             payload = { ...payload, [x.name]: req.query[x.name] };
             return;
           }
-          if (y.data.type === "param") {
+          if (y.data === "param") {
             payload = { ...payload, [x.name]: req.params[x.name] };
             return;
           }
-          if (y.data.type === "body") {
+          if (y.data === "body") {
             payload = { ...payload, [x.name]: req.body[x.name] };
             return;
           }
-          if (y.data.type === "header") {
+          if (y.data === "header") {
             payload = { ...payload, [x.name]: req.get(x.name) };
             return;
           }
 
-          if (y.data.type === "local") {
-            payload = { ...payload, [x.name]: ctx.data[x.name] };
+          if (y.data === "local" && ctx) {
+            payload = { ...payload, [x.name]: ctx[x.name] };
             return;
           }
         });

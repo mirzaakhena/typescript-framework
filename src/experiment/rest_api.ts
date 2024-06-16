@@ -18,7 +18,7 @@ export async function experimentRestAPI() {
   generateController(router, usecases);
 
   app.use(cors({ exposedHeaders: ["Trace-Id", "Date"] }));
-  app.use("/", handleJWTAuth("SECRET_KEY"), router);
+  app.use("/", handleJWTAuth("SECRET_KEY", "userLogin"), router);
 
   console.table(printController(usecases));
 
@@ -27,7 +27,7 @@ export async function experimentRestAPI() {
   });
 }
 
-export const handleJWTAuth = (secretKey: string) => async (req: RequestWithContext, res: express.Response, next: express.NextFunction) => {
+export const handleJWTAuth = (secretKey: string, fieldName: string) => async (req: RequestWithContext, res: express.Response, next: express.NextFunction) => {
   //
 
   try {
@@ -46,8 +46,9 @@ export const handleJWTAuth = (secretKey: string) => async (req: RequestWithConte
 
     const dataDecoded = { data: "" }; // jwt.verify(token[1], secretKey) as JwtPayload;
 
-    if (req.ctx) {
-      req.ctx.data["userLogin"] = dataDecoded.data; // split between user and vendor login data
+    if (!req.context) {
+      req.context = {};
+      req.context[fieldName] = dataDecoded.data; // split between user and vendor login data
     }
 
     next();

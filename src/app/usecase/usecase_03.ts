@@ -6,29 +6,29 @@ interface Person {
   hasPet: boolean;
 }
 
-type Car = {
+interface Car {
   brand: string;
   color: "red" | "blue" | "yellow";
-};
+}
 
 export type PersonRequest = {
   /**
-   * @RestApi {"type": "body"}
+   * @RestApi body
    */
   person: Person[];
 
   /**
-   * @RestApi {"type": "body"}
+   * @RestApi body
    */
   usercategory: string;
 
   /**
-   * @RestApi {"type": "query"}
+   * @RestApi query
    */
   id: string;
 
   /**
-   * @RestApi {"type": "query"}
+   * @RestApi query
    * @TJS-pattern ^[a-zA-Z0-9]{4}-abc_123$
    */
   regexPattern: string;

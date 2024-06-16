@@ -28,3 +28,9 @@ export type SavePerson = ActionHandler<SavePersonRequest, SavePersonResponse>;
 // export type SavePerson = ActionHandler<{ person: Person }, { id: string }>;
 
 export type GenerateRandomId = ActionHandler<void, string>;
+
+export class Payload {
+  title: string;
+  author: string;
+  publishedDate: Date;
+}

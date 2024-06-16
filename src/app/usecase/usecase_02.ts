@@ -1,4 +1,5 @@
 import { ActionHandler } from "../../core/type.js";
+import { Payload } from "../model/model.js";
 
 type GetAllBooksRequest = {
   /**
@@ -30,8 +31,8 @@ type GetAllBooksResponse = {};
 export type GetAllBooks = ActionHandler<GetAllBooksRequest, GetAllBooksResponse>;
 
 /**
- * @Action
- * @Controller { "method": "get", "path": "/books", "tag": "book" }
+ * @Action_
+ * @Controller_ { "method": "get", "path": "/books", "tag": "book" }
  */
 export function ImplGetAllBooks(): GetAllBooks {
   return async (ctx, req) => {
@@ -39,11 +40,11 @@ export function ImplGetAllBooks(): GetAllBooks {
   };
 }
 
-type Payload = {
-  title: string;
-  author: string;
-  publishedDate: Date;
-};
+// export type Payload = {
+//   title: string;
+//   author: string;
+//   publishedDate: Date;
+// };
 
 type CreateNewBookRequest = {
   /**
@@ -72,8 +73,8 @@ type CreateNewBookResponse = {};
 export type CreateNewBook = ActionHandler<CreateNewBookRequest, CreateNewBookResponse>;
 
 /**
- * @Action
- * @Controller { "method": "post", "path": "/books", "tag": "book" }
+ * @Action_
+ * @Controller_ { "method": "post", "path": "/books", "tag": "book" }
  */
 export function ImplCreateNewBook(): CreateNewBook {
   return async (ctx, req) => {
@@ -93,8 +94,8 @@ type GetOneBookByIDResponse = {};
 export type GetOneBookByID = ActionHandler<GetOneBookByIDRequest, GetOneBookByIDResponse>;
 
 /**
- * @Action
- * @Controller { "method": "get", "path": "/books/:id", "tag": "book" }
+ * @Action_
+ * @Controller_ { "method": "get", "path": "/books/:id", "tag": "book" }
  */
 export function ImplGetOneBookByID(): GetOneBookByID {
   return async (ctx, req) => {
@@ -116,8 +117,8 @@ type UpdateBookByIDResponse = {};
 export type UpdateBookByID = ActionHandler<UpdateBookByIDRequest, UpdateBookByIDResponse>;
 
 /**
- * @Action
- * @Controller { "method": "put", "path": "/books/:id", "tag": "book" }
+ * @Action_
+ * @Controller_ { "method": "put", "path": "/books/:id", "tag": "book" }
  */
 export function ImplUpdateBookByID(): UpdateBookByID {
   return async (ctx, req) => {
@@ -137,8 +138,8 @@ type DeleteBookByIDResponse = {};
 export type DeleteBookByID = ActionHandler<DeleteBookByIDRequest, DeleteBookByIDResponse>;
 
 /**
- * @Action
- * @Controller { "method": "delete", "path": "/books/:id", "tag": "book" }
+ * @Action_
+ * @Controller_ { "method": "delete", "path": "/books/:id", "tag": "book" }
  */
 export function ImplDeleteBookByID(): DeleteBookByID {
   return async (ctx, req) => {

@@ -19,8 +19,8 @@ type Response = {
 export type RegisterUniqueUser = ActionHandler<Request, Response>;
 
 /**
- * @Action
- * @Controller { "method": "get", "path": "/registeruser", "tag": "user", "security": "bearer" }
+ * @Action_
+ * @Controller_ { "method": "get", "path": "/registeruser", "tag": "user", "security": "bearer" }
  */
 export function ImplRegisterUniqueUser( //
   findOnePersonByEmail: FindOnePersonByEmail, //

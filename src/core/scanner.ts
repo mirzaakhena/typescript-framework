@@ -136,14 +136,14 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
         decorators,
       };
 
-      console.log(`  as ${badgeColorForKind(meta.kind)}, function ${meta.name} has ${meta.dependencies.length} dependency:`);
-      meta.dependencies.forEach((x) => console.log(`    - ${x}`));
+      printToLog(`  as ${badgeColorForKind(meta.kind)}, function ${meta.name} has ${meta.dependencies.length} dependency:`);
+      meta.dependencies.forEach((x) => printToLog(`    - ${x}`));
 
       funcMap.set(functionReturnTypeName, { funcDeclaration: func, funcMetadata: meta });
     });
   });
 
-  console.log();
+  printToLog();
 
   return funcMap;
 }
@@ -165,7 +165,7 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   orderedFunctions.forEach((x) => {
     //
 
-    console.log(`  - ${x}`);
+    printToLog(`  - ${x}`);
 
     const fm = funcMap.get(x)?.funcMetadata;
 
@@ -185,7 +185,7 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
     }
   });
 
-  console.log();
+  printToLog();
 
   return { configMetadatas, pluginMetadatas, actionMetadatas: actionMetadatas };
 }
@@ -331,22 +331,30 @@ async function resolveActionFunctions(
 export async function scanFunctions(project: Project) {
   //
 
-  console.log("scanned function:");
+  printToLog("scanned function:");
   const funcMap = extractFunctions(project);
 
-  console.log("sort function by dependencies");
+  printToLog("sort function by dependencies");
   const { configMetadatas, pluginMetadatas, actionMetadatas } = sortFunctionsByKind(funcMap);
 
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();
 
-  console.log("resolve config");
+  printToLog("resolve config");
   await resolveConfigFunctions(configMetadatas, funcMap, funcResultMap);
 
-  console.log("resolve plugin");
+  printToLog("resolve plugin");
   await resolvePluginFunctions(pluginMetadatas, funcMap, funcResultMap);
 
-  console.log("resolve action");
+  printToLog("resolve action");
   await resolveActionFunctions(actionMetadatas, pluginMetadatas, funcMap, funcResultMap);
 
   return funcResultMap;
+}
+
+function printToLog(message?: any, ...optionalParams: any[]) {
+  // if (!message) {
+  //   console.log();
+  //   return;
+  // }
+  // console.log(message, ...optionalParams);
 }

@@ -13,28 +13,28 @@ interface Car {
 
 export type PersonRequest = {
   /**
-   * @RestApi body
+   * @RequestPart body
    */
   person: Person[];
 
   /**
-   * @RestApi body
+   * @RequestPart body
    */
-  usercategory: string;
+  usercategory: string | { nomor: number }[];
 
   /**
-   * @RestApi query
+   * @RequestPart query
    */
   id: string;
 
   /**
-   * @RestApi query
-   * @TJS-pattern ^[a-zA-Z0-9]{4}-abc_123$
+   * @RequestPart query
+   * @TJS-format ipv4
    */
-  regexPattern: string;
+  ipv4: string;
 
   /**
-   * @RestApi {"type": "param"}
+   * @RequestPart param
    */
   something: "aaa" | "bbb";
 };
@@ -47,7 +47,12 @@ export type CreateNewPerson = ActionHandler<PersonRequest, PersonResponse>;
 
 /**
  * @Action
- * @Controller { "method": "post", "path": "/person/:something", "tag": "book" }
+ * @Controller {
+ *  "method": "post",
+ *  "path": "/person/:something",
+ *  "tag": "book",
+ *  "security": [{"bearerAuth": []}]
+ * }
  */
 export function ImplCreateNewPerson(): CreateNewPerson {
   return async (ctx, req) => ({ cars: [] });

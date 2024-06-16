@@ -2,7 +2,6 @@ import cors from "cors";
 import express from "express";
 import { Singleton } from "../core/core.js";
 import { generateOpenAPIObject } from "../core/openapi.js";
-import { ReferenceObject, SecuritySchemeObject } from "../core/openapi_types.js";
 
 export async function experimentOpenAPI() {
   //
@@ -15,16 +14,16 @@ export async function experimentOpenAPI() {
   const usecases = Array.from(application.getContainer().values()) //
     .filter((x) => x.funcMetadata.decorators.some((y) => y.name === "Controller"));
 
-  const securitySchema: Record<string, SecuritySchemeObject | ReferenceObject> = {
+  const securitySchema = {
     bearerAuth: {
-      type: "http",
+      type: "http" as const,
       scheme: "bearer",
-      bearer: "JWT",
+      bearerFormat: "JWT",
     },
     bearerAuthVendor: {
-      type: "http",
+      type: "http" as const,
       scheme: "bearer",
-      bearer: "JWT",
+      bearerFormat: "JWT",
     },
   };
 

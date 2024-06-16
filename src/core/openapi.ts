@@ -14,8 +14,8 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], security
     info: { title: "App", version: "1.0.0" },
     paths: {},
     components: {
-      schemas: {},
       securitySchemes,
+      schemas: {},
     },
   };
 
@@ -30,7 +30,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], security
 
     const responseField = TJS.generateSchema(program, funcMetadata.response?.name as string, settings);
 
-    const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
+    const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string; security: string };
 
     let path = data.path;
 
@@ -44,7 +44,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], security
       x.decorator.forEach((y) => {
         //
 
-        if (y.name !== "RestApi") return;
+        if (y.name !== "RequestPart") return;
 
         if (y.data === "param") {
           //
@@ -113,6 +113,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], security
         ...openAPIObject.paths![path],
         [data.method]: {
           tags: [data.tag],
+          security: data.security,
           operationId: funcMetadata.name,
           summary: camelToPascalWithSpace(funcMetadata.name),
           parameters: parameters.length > 0 ? parameters : undefined,

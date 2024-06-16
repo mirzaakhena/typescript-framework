@@ -9,7 +9,7 @@ import { Try011 } from "./experiment/try011.js";
 (async () => {
   // experimentManual();
   // experimentAutomatic();
-  // experimentRestAPI();
+  experimentRestAPI();
   // experimentOpenAPI();
-  await Try011();
+  // await Try011();
 })();

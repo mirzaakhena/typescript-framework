@@ -20,6 +20,7 @@ export function generateController(router: express.Router, usecases: FuncInstanc
     const usecase = funcInstance as ActionHandler;
 
     const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
+
     if (!data) throw new Error("undefined path and method");
 
     router[data.method as Methods](data.path, async (req, res) => {

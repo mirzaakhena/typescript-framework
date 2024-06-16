@@ -44,7 +44,8 @@ export const handleJWTAuth = (secretKey: string, fieldName: string) => async (re
     //   return;
     // }
 
-    const dataDecoded = { data: "" }; // jwt.verify(token[1], secretKey) as JwtPayload;
+    // const dataDecoded = jwt.verify(token[1], secretKey) as JwtPayload;
+    const dataDecoded = { data: "" };
 
     if (!req.context) {
       req.context = {};

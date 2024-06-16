@@ -6,10 +6,10 @@ interface Person {
   hasPet: boolean;
 }
 
-interface Car {
+type Car = {
   brand: string;
   color: "red" | "blue" | "yellow";
-}
+};
 
 export type PersonRequest = {
   /**

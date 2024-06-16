@@ -1,9 +1,9 @@
 import * as TJS from "typescript-json-schema";
-import { OpenAPI3, ParameterObject, SchemaObject } from "../core/openapi_types.js";
+import { OpenAPI3, ParameterObject, ReferenceObject, SchemaObject, SecuritySchemeObject } from "../core/openapi_types.js";
 import { FuncInstanceMetadata } from "../core/type.js";
 import { camelToPascalWithSpace, Methods } from "./helper.js";
 
-export function generateOpenAPIObject(usecases: FuncInstanceMetadata[]) {
+export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>) {
   //
 
   const settings: TJS.PartialArgs = { required: true };
@@ -15,6 +15,7 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[]) {
     paths: {},
     components: {
       schemas: {},
+      securitySchemes,
     },
   };
 
